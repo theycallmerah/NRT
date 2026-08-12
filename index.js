@@ -45,14 +45,23 @@ function setGuildSetting(guildId, key, value) {
 
 function getTicketTypes(guildId) {
     const settings = getGuildSettings(guildId);
-    return settings.ticketTypes || [
-        { label: 'Support', value: 'support' },
-        { label: 'Report', value: 'report' },
-        { label: 'Other', value: 'other' }
-    ];
+    return settings.ticketTypes || [];
 }
 
-// ---------- CONFIG FROM ENV (fallback) ----------
+// Default rules if not set
+const DEFAULT_RULES = `Read the server rules first.
+Don't cause drama or start fights.
+No spamming or annoying people.
+Don't send suspicious links or scams.
+Don't pretend to be someone else.
+No advertising unless it's allowed.
+Respect the staff and other members.
+Follow Discord's rules.
+Don't try to bypass the verification system.
+
+By verifying, you agree to follow the rules. If you break them, you may be warned, kicked, or banned.`;
+
+// ---------- CONFIG FROM ENV ----------
 const TOKEN = process.env.DISCORD_TOKEN;
 const GUILD_ID = process.env.GUILD_ID;
 
@@ -65,38 +74,56 @@ client.once('clientReady', async () => {
         return;
     }
 
-    // Register all commands
+    // Build command tree with subcommand groups
     const commands = [
+        // Help
         new SlashCommandBuilder().setName('help').setDescription('Show all commands'),
 
-        // Configuration commands (admin only)
-        new SlashCommandBuilder().setName('setpanelchannel').setDescription('Set the channel where the ticket panel will be sent').addChannelOption(opt => opt.setName('channel').setDescription('Channel').setRequired(true)),
-        new SlashCommandBuilder().setName('setticketimage').setDescription('Set image URL for the ticket panel').addStringOption(opt => opt.setName('url').setDescription('Image URL').setRequired(true)),
-        new SlashCommandBuilder().setName('addtickettype').setDescription('Add a ticket type button').addStringOption(opt => opt.setName('label').setDescription('Button label').setRequired(true)).addStringOption(opt => opt.setName('description').setDescription('Description (optional)').setRequired(false)),
-        new SlashCommandBuilder().setName('removetickettype').setDescription('Remove a ticket type').addStringOption(opt => opt.setName('label').setDescription('Label to remove').setRequired(true)),
-        new SlashCommandBuilder().setName('setverifychannel').setDescription('Set channel for verification button').addChannelOption(opt => opt.setName('channel').setDescription('Channel').setRequired(true)),
-        new SlashCommandBuilder().setName('setverifyrole').setDescription('Set role to assign on verification').addRoleOption(opt => opt.setName('role').setDescription('Role').setRequired(true)),
-        new SlashCommandBuilder().setName('setwelcomechannel').setDescription('Set channel for welcome messages').addChannelOption(opt => opt.setName('channel').setDescription('Channel').setRequired(true)),
-        new SlashCommandBuilder().setName('setwelcomemessage').setDescription('Set welcome message (use {user}, {guild})').addStringOption(opt => opt.setName('message').setDescription('Message').setRequired(true)),
-        new SlashCommandBuilder().setName('setlogchannel').setDescription('Set channel for verification logs').addChannelOption(opt => opt.setName('channel').setDescription('Channel').setRequired(true)),
-        new SlashCommandBuilder().setName('setpurchaselog').setDescription('Set channel for purchase logs').addChannelOption(opt => opt.setName('channel').setDescription('Channel').setRequired(true)),
-        new SlashCommandBuilder().setName('setcategory').setDescription('Set category for ticket channels').addChannelOption(opt => opt.setName('category').setDescription('Category').setRequired(true)),
+        // Ticket group
+        new SlashCommandBuilder()
+            .setName('ticket')
+            .setDescription('Manage the ticket system')
+            .addSubcommand(sub => sub.setName('panel').setDescription('Send the ticket panel to the current channel'))
+            .addSubcommand(sub => sub.setName('channel').setDescription('Set the default channel for the ticket panel').addChannelOption(opt => opt.setName('channel').setDescription('Channel').setRequired(true)))
+            .addSubcommand(sub => sub.setName('image').setDescription('Set image URL for the ticket panel').addStringOption(opt => opt.setName('url').setDescription('Image URL').setRequired(true)))
+            .addSubcommand(sub => sub.setName('addtype').setDescription('Add a ticket type').addStringOption(opt => opt.setName('label').setDescription('Label').setRequired(true)))
+            .addSubcommand(sub => sub.setName('removetype').setDescription('Remove a ticket type').addStringOption(opt => opt.setName('label').setDescription('Label').setRequired(true)))
+            .addSubcommand(sub => sub.setName('category').setDescription('Set the category for ticket channels').addChannelOption(opt => opt.setName('category').setDescription('Category').setRequired(true))),
 
-        // Ticket deployment
-        new SlashCommandBuilder().setName('ticket').setDescription('Send the ticket panel to the configured channel'),
+        // Verify group
+        new SlashCommandBuilder()
+            .setName('verify')
+            .setDescription('Manage the verification system')
+            .addSubcommand(sub => sub.setName('setup').setDescription('Send the verification button to the current channel'))
+            .addSubcommand(sub => sub.setName('channel').setDescription('Set the default channel for the verification button').addChannelOption(opt => opt.setName('channel').setDescription('Channel').setRequired(true)))
+            .addSubcommand(sub => sub.setName('log').setDescription('Set the log channel for verification data').addChannelOption(opt => opt.setName('channel').setDescription('Channel').setRequired(true)))
+            .addSubcommand(sub => sub.setName('role').setDescription('Set the role to assign on verification').addRoleOption(opt => opt.setName('role').setDescription('Role').setRequired(true)))
+            .addSubcommand(sub => sub.setName('rules').setDescription('Set the rules text shown before verification').addStringOption(opt => opt.setName('text').setDescription('Rules').setRequired(true))),
 
-        // Verification setup (sends the button)
-        new SlashCommandBuilder().setName('setupverify').setDescription('Send the verification button to the verify channel'),
+        // Welcome group
+        new SlashCommandBuilder()
+            .setName('welcome')
+            .setDescription('Manage the welcome system')
+            .addSubcommand(sub => sub.setName('channel').setDescription('Set the welcome channel').addChannelOption(opt => opt.setName('channel').setDescription('Channel').setRequired(true)))
+            .addSubcommand(sub => sub.setName('message').setDescription('Set the welcome message (use {user}, {guild})').addStringOption(opt => opt.setName('text').setDescription('Message').setRequired(true)))
+            .addSubcommand(sub => sub.setName('image').setDescription('Set an image for the welcome embed').addStringOption(opt => opt.setName('url').setDescription('Image URL').setRequired(true)))
+            .addSubcommand(sub => sub.setName('test').setDescription('Send a test welcome message')),
 
-        // Purchase logging
+        // Purchase log channel setting (admin)
+        new SlashCommandBuilder()
+            .setName('setpurchaselog')
+            .setDescription('Set the channel for purchase logs')
+            .addChannelOption(opt => opt.setName('channel').setDescription('Channel').setRequired(true)),
+
+        // Purchase command
         new SlashCommandBuilder()
             .setName('bought')
             .setDescription('Log a purchase with proof')
             .addStringOption(opt => opt.setName('item').setDescription('Item purchased').setRequired(true))
             .addNumberOption(opt => opt.setName('amount').setDescription('Amount paid').setRequired(true))
-            .addAttachmentOption(opt => opt.setName('proof').setDescription('Proof attachment (image/file)').setRequired(false)),
+            .addAttachmentOption(opt => opt.setName('proof').setDescription('Proof attachment').setRequired(false)),
 
-        // Ticket management commands (only in ticket channels)
+        // Ticket management (standalone)
         new SlashCommandBuilder().setName('close').setDescription('Close current ticket'),
         new SlashCommandBuilder().setName('delete').setDescription('Delete current ticket'),
         new SlashCommandBuilder().setName('add').setDescription('Add user to ticket').addUserOption(opt => opt.setName('user').setDescription('User').setRequired(true)),
@@ -114,18 +141,29 @@ client.once('clientReady', async () => {
         console.error('Command registration error:', e);
     }
 
-    // Deploy ticket panel to configured channel if set
+    // Auto-deploy ticket panel if channel is set
     const settings = getGuildSettings(GUILD_ID);
-    if (settings.panelChannelId) {
-        const channel = guild.channels.cache.get(settings.panelChannelId);
+    if (settings.ticketChannelId) {
+        const channel = guild.channels.cache.get(settings.ticketChannelId);
         if (channel) {
             const embed = new EmbedBuilder()
                 .setTitle('Create a Ticket')
-                .setDescription('Click a button below to open a ticket.')
-                .setColor(0x5865F2);
+                .setDescription('Choose a ticket type below.')
+                .setColor(0x1a1a1a)
+                .setFooter({ text: 'NRT BOT', iconURL: client.user.displayAvatarURL() });
             if (settings.ticketImageUrl) embed.setImage(settings.ticketImageUrl);
             const row = new ActionRowBuilder();
             const types = getTicketTypes(GUILD_ID);
+            if (types.length === 0) {
+                // Add default types if none
+                const defaults = [
+                    { label: 'Support', value: 'support' },
+                    { label: 'Report', value: 'report' },
+                    { label: 'Other', value: 'other' }
+                ];
+                setGuildSetting(GUILD_ID, 'ticketTypes', defaults);
+                types.push(...defaults);
+            }
             for (const t of types) {
                 row.addComponents(
                     new ButtonBuilder()
@@ -135,7 +173,7 @@ client.once('clientReady', async () => {
                 );
             }
             await channel.send({ embeds: [embed], components: [row] }).catch(() => {});
-            console.log('Ticket panel sent to configured channel.');
+            console.log('Ticket panel auto-deployed.');
         }
     }
 });
@@ -147,9 +185,13 @@ client.on('guildMemberAdd', async (member) => {
     if (!settings.welcomeChannelId) return;
     const channel = guild.channels.cache.get(settings.welcomeChannelId);
     if (!channel) return;
-    const msgTemplate = settings.welcomeMessage || 'Welcome {user} to {guild}!';
-    const msg = msgTemplate.replace(/{user}/g, member.toString()).replace(/{guild}/g, guild.name);
-    await channel.send(msg);
+    const embed = new EmbedBuilder()
+        .setColor(0x1a1a1a)
+        .setTitle('Welcome')
+        .setDescription((settings.welcomeMessage || 'Welcome {user} to {guild}!').replace(/{user}/g, member.toString()).replace(/{guild}/g, guild.name))
+        .setTimestamp();
+    if (settings.welcomeImageUrl) embed.setImage(settings.welcomeImageUrl);
+    await channel.send({ embeds: [embed] });
 });
 
 // ---------- MODALS ----------
@@ -179,13 +221,14 @@ class TicketModal extends ModalBuilder {
 // ---------- INTERACTION HANDLING ----------
 client.on('interactionCreate', async (interaction) => {
     if (interaction.isModalSubmit()) {
+        // Verification modal
         if (interaction.customId === 'verifyModal') {
             const fullName = interaction.fields.getTextInputValue('fullName');
             const reason = interaction.fields.getTextInputValue('reason');
             const extra = interaction.fields.getTextInputValue('extra') || 'None';
             const embed = new EmbedBuilder()
                 .setTitle('New Verification')
-                .setColor(0x00FF00)
+                .setColor(0x00ff00)
                 .setDescription(`User: ${interaction.user}\nID: ${interaction.user.id}`)
                 .addFields(
                     { name: 'Full Name', value: fullName },
@@ -194,27 +237,25 @@ client.on('interactionCreate', async (interaction) => {
                 )
                 .setTimestamp();
             const settings = getGuildSettings(interaction.guild.id);
-            const logChannel = interaction.guild.channels.cache.get(settings.logChannelId);
+            const logChannel = interaction.guild.channels.cache.get(settings.verifyLogChannelId);
             if (logChannel) await logChannel.send({ embeds: [embed] });
-            
-            // Assign role if set
+            // Assign role
             if (settings.verifyRoleId) {
                 const role = interaction.guild.roles.cache.get(settings.verifyRoleId);
-                if (role) {
-                    await interaction.member.roles.add(role).catch(() => {});
-                }
+                if (role) await interaction.member.roles.add(role).catch(() => {});
             }
-            await interaction.reply({ content: 'Your information has been submitted and you have been verified.', ephemeral: true });
+            await interaction.reply({ content: 'You have been verified!', ephemeral: true });
             return;
         }
 
+        // Ticket modal
         if (interaction.customId.startsWith('ticketModal_')) {
             const ticketType = interaction.customId.replace('ticketModal_', '');
             const reason = interaction.fields.getTextInputValue('reason');
             const settings = getGuildSettings(interaction.guild.id);
             const category = interaction.guild.channels.cache.get(settings.ticketCategoryId);
             if (!category) {
-                await interaction.reply({ content: 'Ticket category not set. Ask admin to use /setcategory.', ephemeral: true });
+                await interaction.reply({ content: 'Ticket category not set. Use /ticket category.', ephemeral: true });
                 return;
             }
             const ticketCount = category.children.cache.filter(ch => ch.name.startsWith('ticket-')).size + 1;
@@ -223,7 +264,6 @@ client.on('interactionCreate', async (interaction) => {
                 { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
                 { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
             ];
-            // If staff role set, add it
             if (settings.staffRoleId) {
                 overwrites.push({ id: settings.staffRoleId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] });
             }
@@ -231,7 +271,7 @@ client.on('interactionCreate', async (interaction) => {
             const embed = new EmbedBuilder()
                 .setTitle(`Ticket: ${ticketType}`)
                 .setDescription(`Created by ${interaction.user}\nReason: ${reason}`)
-                .setColor(0x5865F2)
+                .setColor(0x1a1a1a)
                 .setFooter({ text: 'Use /close to close this ticket' });
             await channel.send({ content: `${interaction.user}`, embeds: [embed] });
             await interaction.reply({ content: `Ticket created: ${channel}`, ephemeral: true });
@@ -239,11 +279,14 @@ client.on('interactionCreate', async (interaction) => {
         }
     }
 
+    // ---------- BUTTONS ----------
     if (interaction.isButton()) {
+        // Verify button – show rules first? We'll show rules in the embed already; clicking verify opens modal.
         if (interaction.customId === 'verifyButton') {
             await interaction.showModal(new VerifyModal());
             return;
         }
+        // Ticket type buttons
         if (interaction.customId.startsWith('ticket_')) {
             const type = interaction.customId.replace('ticket_', '');
             await interaction.showModal(new TicketModal(type));
@@ -251,185 +294,225 @@ client.on('interactionCreate', async (interaction) => {
         }
     }
 
+    // ---------- SLASH COMMANDS ----------
     if (interaction.isChatInputCommand()) {
-        const { commandName } = interaction;
+        const { commandName, options } = interaction;
         const settings = getGuildSettings(interaction.guild.id);
 
         // ----- HELP -----
         if (commandName === 'help') {
             const embed = new EmbedBuilder()
                 .setTitle('NRT BOT Commands')
-                .setDescription('All commands (admin commands require Administrator)')
+                .setColor(0x1a1a1a)
+                .setDescription('All commands are organized in groups.')
                 .addFields(
-                    { name: 'Ticket Panel', value: '/ticket - Send the ticket panel to the configured channel' },
-                    { name: 'Verification', value: '/setupverify - Send verification button to verify channel' },
-                    { name: 'Ticket Management', value: '/close /delete /add /remove /rename /claim /unclaim /list' },
-                    { name: 'Purchase Log', value: '/bought <item> <amount> [proof] - Log a purchase' },
-                    { name: 'Configuration (Admin)', value: '/setpanelchannel /setticketimage /addtickettype /removetickettype /setverifychannel /setverifyrole /setwelcomechannel /setwelcomemessage /setlogchannel /setpurchaselog /setcategory' }
+                    { name: '/ticket', value: 'Manage ticket system: panel, channel, image, addtype, removetype, category' },
+                    { name: '/verify', value: 'Manage verification: setup, channel, log, role, rules' },
+                    { name: '/welcome', value: 'Manage welcome: channel, message, image, test' },
+                    { name: 'Ticket Management', value: '/close, /delete, /add, /remove, /rename, /claim, /unclaim, /list' },
+                    { name: 'Purchase', value: '/bought <item> <amount> [proof]' },
+                    { name: 'Admin', value: '/setpurchaselog' }
                 )
-                .setColor(0x00AAFF)
-                .setFooter({ text: 'All commands are text-only.' });
+                .setFooter({ text: 'Dark theme – all embeds use black background' });
             await interaction.reply({ embeds: [embed] });
             return;
         }
 
-        // ----- CONFIGURATION (Admin only) -----
+        // Check admin for settings commands
         const isAdmin = interaction.memberPermissions.has(PermissionFlagsBits.Administrator);
-        const configCmds = ['setpanelchannel','setticketimage','addtickettype','removetickettype','setverifychannel','setverifyrole','setwelcomechannel','setwelcomemessage','setlogchannel','setpurchaselog','setcategory'];
-        if (configCmds.includes(commandName) && !isAdmin) {
+        const settingCmds = ['ticket', 'verify', 'welcome', 'setpurchaselog'];
+        if (settingCmds.includes(commandName) && !isAdmin) {
             await interaction.reply({ content: 'You need Administrator permission.', ephemeral: true });
             return;
         }
 
-        if (commandName === 'setpanelchannel') {
-            const channel = interaction.options.getChannel('channel');
-            setGuildSetting(interaction.guild.id, 'panelChannelId', channel.id);
-            await interaction.reply({ content: `Ticket panel channel set to ${channel}.`, ephemeral: true });
-            return;
-        }
-        if (commandName === 'setticketimage') {
-            const url = interaction.options.getString('url');
-            setGuildSetting(interaction.guild.id, 'ticketImageUrl', url);
-            await interaction.reply({ content: 'Ticket image updated.', ephemeral: true });
-            return;
-        }
-        if (commandName === 'addtickettype') {
-            const label = interaction.options.getString('label');
-            const desc = interaction.options.getString('description') || label;
-            let types = getTicketTypes(interaction.guild.id);
-            if (types.some(t => t.label === label)) {
-                await interaction.reply({ content: 'Label already exists.', ephemeral: true });
+        // ----- TICKET GROUP -----
+        if (commandName === 'ticket') {
+            const sub = options.getSubcommand();
+            if (sub === 'panel') {
+                const embed = new EmbedBuilder()
+                    .setTitle('Create a Ticket')
+                    .setDescription('Choose a ticket type below.')
+                    .setColor(0x1a1a1a)
+                    .setFooter({ text: 'NRT BOT', iconURL: client.user.displayAvatarURL() });
+                if (settings.ticketImageUrl) embed.setImage(settings.ticketImageUrl);
+                const row = new ActionRowBuilder();
+                let types = getTicketTypes(interaction.guild.id);
+                if (types.length === 0) {
+                    // set defaults
+                    types = [
+                        { label: 'Support', value: 'support' },
+                        { label: 'Report', value: 'report' },
+                        { label: 'Other', value: 'other' }
+                    ];
+                    setGuildSetting(interaction.guild.id, 'ticketTypes', types);
+                }
+                for (const t of types) {
+                    row.addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`ticket_${t.value}`)
+                            .setLabel(t.label)
+                            .setStyle(ButtonStyle.Primary)
+                    );
+                }
+                await interaction.channel.send({ embeds: [embed], components: [row] });
+                await interaction.reply({ content: 'Ticket panel sent.', ephemeral: true });
                 return;
             }
-            types.push({ label, value: label.toLowerCase().replace(/\s/g,'_') });
-            setGuildSetting(interaction.guild.id, 'ticketTypes', types);
-            await interaction.reply({ content: `Ticket type "${label}" added.`, ephemeral: true });
-            return;
-        }
-        if (commandName === 'removetickettype') {
-            const label = interaction.options.getString('label');
-            let types = getTicketTypes(interaction.guild.id);
-            const filtered = types.filter(t => t.label !== label);
-            if (filtered.length === types.length) {
-                await interaction.reply({ content: 'Label not found.', ephemeral: true });
+            if (sub === 'channel') {
+                const channel = options.getChannel('channel');
+                setGuildSetting(interaction.guild.id, 'ticketChannelId', channel.id);
+                await interaction.reply({ content: `Ticket panel channel set to ${channel}.`, ephemeral: true });
                 return;
             }
-            setGuildSetting(interaction.guild.id, 'ticketTypes', filtered);
-            await interaction.reply({ content: `Ticket type "${label}" removed.`, ephemeral: true });
-            return;
+            if (sub === 'image') {
+                const url = options.getString('url');
+                setGuildSetting(interaction.guild.id, 'ticketImageUrl', url);
+                await interaction.reply({ content: 'Ticket image updated.', ephemeral: true });
+                return;
+            }
+            if (sub === 'addtype') {
+                const label = options.getString('label');
+                let types = getTicketTypes(interaction.guild.id);
+                if (types.some(t => t.label === label)) {
+                    await interaction.reply({ content: 'Type already exists.', ephemeral: true });
+                    return;
+                }
+                types.push({ label, value: label.toLowerCase().replace(/\s+/g, '_') });
+                setGuildSetting(interaction.guild.id, 'ticketTypes', types);
+                await interaction.reply({ content: `Type "${label}" added.`, ephemeral: true });
+                return;
+            }
+            if (sub === 'removetype') {
+                const label = options.getString('label');
+                let types = getTicketTypes(interaction.guild.id);
+                const filtered = types.filter(t => t.label !== label);
+                if (filtered.length === types.length) {
+                    await interaction.reply({ content: 'Type not found.', ephemeral: true });
+                    return;
+                }
+                setGuildSetting(interaction.guild.id, 'ticketTypes', filtered);
+                await interaction.reply({ content: `Type "${label}" removed.`, ephemeral: true });
+                return;
+            }
+            if (sub === 'category') {
+                const category = options.getChannel('category');
+                if (category.type !== ChannelType.GuildCategory) {
+                    await interaction.reply({ content: 'Please select a category.', ephemeral: true });
+                    return;
+                }
+                setGuildSetting(interaction.guild.id, 'ticketCategoryId', category.id);
+                await interaction.reply({ content: `Ticket category set to ${category.name}.`, ephemeral: true });
+                return;
+            }
         }
-        if (commandName === 'setverifychannel') {
-            const channel = interaction.options.getChannel('channel');
-            setGuildSetting(interaction.guild.id, 'verifyChannelId', channel.id);
-            await interaction.reply({ content: `Verification channel set to ${channel}.`, ephemeral: true });
-            return;
+
+        // ----- VERIFY GROUP -----
+        if (commandName === 'verify') {
+            const sub = options.getSubcommand();
+            if (sub === 'setup') {
+                // Send the verification button with rules in the embed
+                const rules = settings.verifyRules || DEFAULT_RULES;
+                const embed = new EmbedBuilder()
+                    .setTitle('Verification')
+                    .setDescription(rules)
+                    .setColor(0x1a1a1a)
+                    .setFooter({ text: 'Click the button below to verify.' });
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('verifyButton')
+                        .setLabel('I Agree & Verify')
+                        .setStyle(ButtonStyle.Success)
+                );
+                await interaction.channel.send({ embeds: [embed], components: [row] });
+                await interaction.reply({ content: 'Verification panel sent.', ephemeral: true });
+                return;
+            }
+            if (sub === 'channel') {
+                const channel = options.getChannel('channel');
+                setGuildSetting(interaction.guild.id, 'verifyChannelId', channel.id);
+                await interaction.reply({ content: `Verification channel set to ${channel}.`, ephemeral: true });
+                return;
+            }
+            if (sub === 'log') {
+                const channel = options.getChannel('channel');
+                setGuildSetting(interaction.guild.id, 'verifyLogChannelId', channel.id);
+                await interaction.reply({ content: `Verification log channel set to ${channel}.`, ephemeral: true });
+                return;
+            }
+            if (sub === 'role') {
+                const role = options.getRole('role');
+                setGuildSetting(interaction.guild.id, 'verifyRoleId', role.id);
+                await interaction.reply({ content: `Verification role set to ${role.name}.`, ephemeral: true });
+                return;
+            }
+            if (sub === 'rules') {
+                const text = options.getString('text');
+                setGuildSetting(interaction.guild.id, 'verifyRules', text);
+                await interaction.reply({ content: 'Rules updated.', ephemeral: true });
+                return;
+            }
         }
-        if (commandName === 'setverifyrole') {
-            const role = interaction.options.getRole('role');
-            setGuildSetting(interaction.guild.id, 'verifyRoleId', role.id);
-            await interaction.reply({ content: `Verification role set to ${role.name}.`, ephemeral: true });
-            return;
+
+        // ----- WELCOME GROUP -----
+        if (commandName === 'welcome') {
+            const sub = options.getSubcommand();
+            if (sub === 'channel') {
+                const channel = options.getChannel('channel');
+                setGuildSetting(interaction.guild.id, 'welcomeChannelId', channel.id);
+                await interaction.reply({ content: `Welcome channel set to ${channel}.`, ephemeral: true });
+                return;
+            }
+            if (sub === 'message') {
+                const text = options.getString('text');
+                setGuildSetting(interaction.guild.id, 'welcomeMessage', text);
+                await interaction.reply({ content: 'Welcome message updated.', ephemeral: true });
+                return;
+            }
+            if (sub === 'image') {
+                const url = options.getString('url');
+                setGuildSetting(interaction.guild.id, 'welcomeImageUrl', url);
+                await interaction.reply({ content: 'Welcome image updated.', ephemeral: true });
+                return;
+            }
+            if (sub === 'test') {
+                if (!settings.welcomeChannelId) {
+                    await interaction.reply({ content: 'Welcome channel not set.', ephemeral: true });
+                    return;
+                }
+                const channel = interaction.guild.channels.cache.get(settings.welcomeChannelId);
+                if (!channel) {
+                    await interaction.reply({ content: 'Channel not found.', ephemeral: true });
+                    return;
+                }
+                const embed = new EmbedBuilder()
+                    .setColor(0x1a1a1a)
+                    .setTitle('Welcome')
+                    .setDescription((settings.welcomeMessage || 'Welcome {user} to {guild}!').replace(/{user}/g, interaction.user.toString()).replace(/{guild}/g, interaction.guild.name))
+                    .setTimestamp();
+                if (settings.welcomeImageUrl) embed.setImage(settings.welcomeImageUrl);
+                await channel.send({ embeds: [embed] });
+                await interaction.reply({ content: 'Test welcome sent.', ephemeral: true });
+                return;
+            }
         }
-        if (commandName === 'setwelcomechannel') {
-            const channel = interaction.options.getChannel('channel');
-            setGuildSetting(interaction.guild.id, 'welcomeChannelId', channel.id);
-            await interaction.reply({ content: `Welcome channel set to ${channel}.`, ephemeral: true });
-            return;
-        }
-        if (commandName === 'setwelcomemessage') {
-            const msg = interaction.options.getString('message');
-            setGuildSetting(interaction.guild.id, 'welcomeMessage', msg);
-            await interaction.reply({ content: 'Welcome message updated.', ephemeral: true });
-            return;
-        }
-        if (commandName === 'setlogchannel') {
-            const channel = interaction.options.getChannel('channel');
-            setGuildSetting(interaction.guild.id, 'logChannelId', channel.id);
-            await interaction.reply({ content: `Log channel set to ${channel}.`, ephemeral: true });
-            return;
-        }
+
+        // ----- SET PURCHASE LOG CHANNEL -----
         if (commandName === 'setpurchaselog') {
-            const channel = interaction.options.getChannel('channel');
+            const channel = options.getChannel('channel');
             setGuildSetting(interaction.guild.id, 'purchaseLogChannelId', channel.id);
             await interaction.reply({ content: `Purchase log channel set to ${channel}.`, ephemeral: true });
-            return;
-        }
-        if (commandName === 'setcategory') {
-            const category = interaction.options.getChannel('category');
-            if (category.type !== ChannelType.GuildCategory) {
-                await interaction.reply({ content: 'Please select a category.', ephemeral: true });
-                return;
-            }
-            setGuildSetting(interaction.guild.id, 'ticketCategoryId', category.id);
-            await interaction.reply({ content: `Ticket category set to ${category.name}.`, ephemeral: true });
-            return;
-        }
-
-        // ----- TICKET PANEL DEPLOYMENT -----
-        if (commandName === 'ticket') {
-            if (!settings.panelChannelId) {
-                await interaction.reply({ content: 'Panel channel not set. Use /setpanelchannel first.', ephemeral: true });
-                return;
-            }
-            const channel = interaction.guild.channels.cache.get(settings.panelChannelId);
-            if (!channel) {
-                await interaction.reply({ content: 'Channel not found.', ephemeral: true });
-                return;
-            }
-            const embed = new EmbedBuilder()
-                .setTitle('Create a Ticket')
-                .setDescription('Choose a ticket type:')
-                .setColor(0x5865F2);
-            if (settings.ticketImageUrl) embed.setImage(settings.ticketImageUrl);
-            const row = new ActionRowBuilder();
-            const types = getTicketTypes(interaction.guild.id);
-            for (const t of types) {
-                row.addComponents(
-                    new ButtonBuilder()
-                        .setCustomId(`ticket_${t.value}`)
-                        .setLabel(t.label)
-                        .setStyle(ButtonStyle.Primary)
-                );
-            }
-            await channel.send({ embeds: [embed], components: [row] });
-            await interaction.reply({ content: `Ticket panel sent to ${channel}.`, ephemeral: true });
-            return;
-        }
-
-        // ----- SETUP VERIFICATION -----
-        if (commandName === 'setupverify') {
-            if (!settings.verifyChannelId) {
-                await interaction.reply({ content: 'Verify channel not set. Use /setverifychannel first.', ephemeral: true });
-                return;
-            }
-            const channel = interaction.guild.channels.cache.get(settings.verifyChannelId);
-            if (!channel) {
-                await interaction.reply({ content: 'Verify channel not found.', ephemeral: true });
-                return;
-            }
-            const embed = new EmbedBuilder()
-                .setTitle('Verification Required')
-                .setDescription('Click the button below to verify.')
-                .setColor(0xFFD700);
-            const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId('verifyButton')
-                    .setLabel('Verify')
-                    .setStyle(ButtonStyle.Success)
-            );
-            await channel.send({ embeds: [embed], components: [row] });
-            await interaction.reply({ content: `Verification button sent to ${channel}.`, ephemeral: true });
             return;
         }
 
         // ----- PURCHASE LOGGING -----
         if (commandName === 'bought') {
-            const item = interaction.options.getString('item');
-            const amount = interaction.options.getNumber('amount');
-            const proof = interaction.options.getAttachment('proof');
+            const item = options.getString('item');
+            const amount = options.getNumber('amount');
+            const proof = options.getAttachment('proof');
             const embed = new EmbedBuilder()
                 .setTitle('Purchase Log')
-                .setColor(0x00AAFF)
+                .setColor(0x1a1a1a)
                 .addFields(
                     { name: 'Buyer', value: `${interaction.user} (${interaction.user.id})` },
                     { name: 'Item', value: item },
@@ -442,23 +525,24 @@ client.on('interactionCreate', async (interaction) => {
             }
             const logChannel = interaction.guild.channels.cache.get(settings.purchaseLogChannelId);
             if (!logChannel) {
-                await interaction.reply({ content: 'Purchase log channel not set. Use /setpurchaselog first.', ephemeral: true });
+                await interaction.reply({ content: 'Purchase log channel not set. Use /setpurchaselog.', ephemeral: true });
                 return;
             }
             await logChannel.send({ embeds: [embed] });
-            await interaction.reply({ content: 'Purchase logged successfully.', ephemeral: true });
+            await interaction.reply({ content: 'Purchase logged.', ephemeral: true });
             return;
         }
 
-        // ----- TICKET MANAGEMENT (inside ticket channels) -----
+        // ----- TICKET MANAGEMENT COMMANDS (inside ticket channels) -----
         const isTicket = interaction.channel.name.startsWith('ticket-');
-        if (!isTicket && ['close','delete','add','remove','rename','claim','unclaim'].includes(commandName)) {
-            await interaction.reply({ content: 'This command only works in ticket channels.', ephemeral: true });
+        const mgmtCmds = ['close','delete','add','remove','rename','claim','unclaim','list'];
+        if (mgmtCmds.includes(commandName) && !isTicket) {
+            await interaction.reply({ content: 'This command only works inside ticket channels.', ephemeral: true });
             return;
         }
 
         if (commandName === 'close') {
-            const embed = new EmbedBuilder().setTitle('Ticket Closed').setDescription('This ticket has been closed.').setColor(0xFF0000);
+            const embed = new EmbedBuilder().setTitle('Ticket Closed').setDescription('This ticket has been closed.').setColor(0x1a1a1a);
             await interaction.reply({ embeds: [embed] });
             await interaction.channel.permissionOverwrites.edit(interaction.guild.id, { ViewChannel: false });
             return;
@@ -469,30 +553,30 @@ client.on('interactionCreate', async (interaction) => {
             return;
         }
         if (commandName === 'add') {
-            const user = interaction.options.getUser('user');
+            const user = options.getUser('user');
             await interaction.channel.permissionOverwrites.edit(user.id, { ViewChannel: true, SendMessages: true, ReadMessageHistory: true });
             await interaction.reply({ content: `${user} added.` });
             return;
         }
         if (commandName === 'remove') {
-            const user = interaction.options.getUser('user');
+            const user = options.getUser('user');
             await interaction.channel.permissionOverwrites.edit(user.id, { ViewChannel: false });
             await interaction.reply({ content: `${user} removed.` });
             return;
         }
         if (commandName === 'rename') {
-            const newName = interaction.options.getString('name');
+            const newName = options.getString('name');
             await interaction.channel.setName(newName);
             await interaction.reply({ content: `Renamed to ${newName}` });
             return;
         }
         if (commandName === 'claim') {
-            const embed = new EmbedBuilder().setTitle('Ticket Claimed').setDescription(`${interaction.user} claimed this ticket.`).setColor(0x00FF00);
+            const embed = new EmbedBuilder().setTitle('Ticket Claimed').setDescription(`${interaction.user} claimed this ticket.`).setColor(0x00ff00);
             await interaction.reply({ embeds: [embed] });
             return;
         }
         if (commandName === 'unclaim') {
-            const embed = new EmbedBuilder().setTitle('Ticket Unclaimed').setDescription(`${interaction.user} unclaimed this ticket.`).setColor(0xFFA500);
+            const embed = new EmbedBuilder().setTitle('Ticket Unclaimed').setDescription(`${interaction.user} unclaimed this ticket.`).setColor(0xffa500);
             await interaction.reply({ embeds: [embed] });
             return;
         }
@@ -508,7 +592,7 @@ client.on('interactionCreate', async (interaction) => {
                 return;
             }
             const list = tickets.map(ch => `${ch} - ${ch.name}`).join('\n');
-            const embed = new EmbedBuilder().setTitle('Open Tickets').setDescription(list).setColor(0x00AAFF);
+            const embed = new EmbedBuilder().setTitle('Open Tickets').setDescription(list).setColor(0x1a1a1a);
             await interaction.reply({ embeds: [embed] });
             return;
         }
