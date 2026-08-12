@@ -43,7 +43,7 @@ client.once('ready', async () => {
         new SlashCommandBuilder()
             .setName('delete')
             .setDescription('Permanently delete the ticket channel'),
-        new SllashCommandBuilder()
+        new SlashCommandBuilder()
             .setName('add')
             .setDescription('Add a user to the ticket')
             .addUserOption(option => option.setName('user').setDescription('User to add').setRequired(true)),
