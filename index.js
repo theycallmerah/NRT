@@ -29,31 +29,20 @@ const TICKET_TYPES = {
 };
 
 // ---------- CLIENT READY ----------
-client.once('ready', async () => {
+client.once('clientReady', async () => {
     console.log(`Logged in as ${client.user.tag}`);
-    // Register slash commands (global or guild)
+
     const commands = [
         new SlashCommandBuilder().setName('ticket').setDescription('Deploy the ticket creation panel'),
         new SlashCommandBuilder().setName('setupverify').setDescription('Send the verification button to the verify channel'),
         new SlashCommandBuilder().setName('help').setDescription('Show all commands'),
-        // Ticket management – as subcommands
-     const commands = [
-    new SlashCommandBuilder().setName('ticket').setDescription('Deploy the ticket creation panel'),
-    new SlashCommandBuilder().setName('setupverify').setDescription('Send the verification button to the verify channel'),
-    new SlashCommandBuilder().setName('help').setDescription('Show all commands'),
-    // Ticket management – as subcommands
-    new SlashCommandBuilder()
-        .setName('close')
-        .setDescription('Close the current ticket channel'),
-    new SlashCommandBuilder()
-        .setName('delete')
-        .setDescription('Permanently delete the ticket channel'),
-    new SlashCommandBuilder()
-        .setName('add')
-        .setDescription('Add a user to the ticket')
-        .addUserOption(option => option.setName('user').setDescription('User to add').setRequired(true)),
-    // ... rest of the commands
-];
+        new SlashCommandBuilder().setName('close').setDescription('Close the current ticket channel'),
+        new SlashCommandBuilder().setName('delete').setDescription('Permanently delete the ticket channel'),
+        new SlashCommandBuilder()
+            .setName('add')
+            .setDescription('Add a user to the ticket')
+            .addUserOption(option => option.setName('user').setDescription('User to add').setRequired(true)),
+        new SlashCommandBuilder()
             .setName('remove')
             .setDescription('Remove a user from the ticket')
             .addUserOption(option => option.setName('user').setDescription('User to remove').setRequired(true)),
@@ -61,15 +50,9 @@ client.once('ready', async () => {
             .setName('rename')
             .setDescription('Rename the ticket channel')
             .addStringOption(option => option.setName('name').setDescription('New channel name').setRequired(true)),
-        new SlashCommandBuilder()
-            .setName('claim')
-            .setDescription('Claim this ticket'),
-        new SlashCommandBuilder()
-            .setName('unclaim')
-            .setDescription('Unclaim this ticket'),
-        new SlashCommandBuilder()
-            .setName('list')
-            .setDescription('List all open tickets'),
+        new SlashCommandBuilder().setName('claim').setDescription('Claim this ticket'),
+        new SlashCommandBuilder().setName('unclaim').setDescription('Unclaim this ticket'),
+        new SlashCommandBuilder().setName('list').setDescription('List all open tickets'),
     ];
 
     try {
