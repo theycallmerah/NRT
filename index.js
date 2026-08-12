@@ -37,17 +37,23 @@ client.once('ready', async () => {
         new SlashCommandBuilder().setName('setupverify').setDescription('Send the verification button to the verify channel'),
         new SlashCommandBuilder().setName('help').setDescription('Show all commands'),
         // Ticket management – as subcommands
-        new SlashCommandBuilder()
-            .setName('close')
-            .setDescription('Close the current ticket channel'),
-        new SlashCommandBuilder()
-            .setName('delete')
-            .setDescription('Permanently delete the ticket channel'),
-        new SlashCommandBuilder()
-            .setName('add')
-            .setDescription('Add a user to the ticket')
-            .addUserOption(option => option.setName('user').setDescription('User to add').setRequired(true)),
-        new SlashCommandBuilder()
+     const commands = [
+    new SlashCommandBuilder().setName('ticket').setDescription('Deploy the ticket creation panel'),
+    new SlashCommandBuilder().setName('setupverify').setDescription('Send the verification button to the verify channel'),
+    new SlashCommandBuilder().setName('help').setDescription('Show all commands'),
+    // Ticket management – as subcommands
+    new SlashCommandBuilder()
+        .setName('close')
+        .setDescription('Close the current ticket channel'),
+    new SlashCommandBuilder()
+        .setName('delete')
+        .setDescription('Permanently delete the ticket channel'),
+    new SlashCommandBuilder()
+        .setName('add')
+        .setDescription('Add a user to the ticket')
+        .addUserOption(option => option.setName('user').setDescription('User to add').setRequired(true)),
+    // ... rest of the commands
+];
             .setName('remove')
             .setDescription('Remove a user from the ticket')
             .addUserOption(option => option.setName('user').setDescription('User to remove').setRequired(true)),
