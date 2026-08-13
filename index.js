@@ -9,13 +9,9 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 
-// ================================
-//  NRT OMEGA – CLEAN VERSION
-// ================================
+console.log('[NRT] Starting...');
 
-console.log('[NRT] STARTING...');
-
-// ---------- EXPRESS ----------
+// ---------- EXPRESS (for Railway health checks) ----------
 const app = express();
 const PORT = process.env.PORT || 3000;
 app.get('/', (req, res) => res.send('NRT OMEGA ONLINE'));
@@ -45,7 +41,7 @@ const client = new Client({
 const dataDir = path.join(__dirname, 'data');
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
 
-const db = {
+const dbFiles = {
   config: path.join(dataDir, 'config.json'),
   whitelist: path.join(dataDir, 'whitelist.json'),
   blacklist: path.join(dataDir, 'blacklist.json'),
@@ -57,7 +53,7 @@ const db = {
   raidLogs: path.join(dataDir, 'raidLogs.json')
 };
 
-Object.values(db).forEach(file => {
+Object.values(dbFiles).forEach(file => {
   if (!fs.existsSync(file)) {
     const defaults = {
       'config.json': {},
@@ -79,7 +75,7 @@ const save = (file, data) => { fs.writeFileSync(file, JSON.stringify(data, null,
 
 // ---------- CONFIG ----------
 function getConfig(guildId) {
-  const config = load(db.config);
+  const config = load(dbFiles.config);
   if (!config[guildId]) {
     config[guildId] = {
       logChannel: null,
@@ -104,69 +100,65 @@ function getConfig(guildId) {
       autoTimeout: true,
       panicMode: false,
       safeMode: false,
-      // Ticket
       ticketChannelId: null,
       ticketCategoryId: null,
       ticketImageUrl: null,
-      ticketTypes: ['Support','Report','Other'],
+      ticketTypes: ['Support', 'Report', 'Other'],
       staffRoleId: null,
-      // Verify
       verifyChannelId: null,
       verifyLogChannelId: null,
       verifyRoleId: null,
       verifyRules: "Read the server rules first.\nDon't cause drama or start fights.\nNo spamming or annoying people.\nDon't send suspicious links or scams.\nDon't pretend to be someone else.\nNo advertising unless it's allowed.\nRespect the staff and other members.\nFollow Discord's rules.\nDon't try to bypass the verification system.\n\nBy verifying, you agree to follow the rules. If you break them, you may be warned, kicked, or banned.",
-      // Welcome
       welcomeChannelId: null,
       welcomeMessage: 'Welcome {user} to {guild}!',
       welcomeImageUrl: null,
-      // Proof
       proofChannelId: null
     };
-    save(db.config, config);
+    save(dbFiles.config, config);
   }
   return config[guildId];
 }
 
 function saveConfig(guildId, cfg) {
-  const config = load(db.config);
+  const config = load(dbFiles.config);
   config[guildId] = cfg;
-  save(db.config, config);
+  save(dbFiles.config, config);
 }
 
-// ---------- HELPER FUNCTIONS ----------
+// ---------- HELPERS ----------
 const isOwner = (id) => id === process.env.OWNER_ID;
 const isWhitelisted = (guildId, userId) => {
-  const wl = load(db.whitelist);
+  const wl = load(dbFiles.whitelist);
   return wl.users?.includes(userId) || false;
 };
 const isBypassed = (guildId, userId) => isOwner(userId) || isWhitelisted(guildId, userId);
 
 function getTrust(guildId, userId) {
-  const data = load(db.trust);
+  const data = load(dbFiles.trust);
   return data[`${guildId}:${userId}`] || 50;
 }
 function updateTrust(guildId, userId, delta, reason = '') {
-  const data = load(db.trust);
+  const data = load(dbFiles.trust);
   const key = `${guildId}:${userId}`;
   const current = data[key] || 50;
   data[key] = Math.max(0, Math.min(100, current + delta));
-  save(db.trust, data);
+  save(dbFiles.trust, data);
 }
 function getStrikes(guildId, userId) {
-  const data = load(db.strikes);
+  const data = load(dbFiles.strikes);
   return data[`${guildId}:${userId}`] || 0;
 }
 function addStrike(guildId, userId, amount = 1, reason = '') {
-  const data = load(db.strikes);
+  const data = load(dbFiles.strikes);
   const key = `${guildId}:${userId}`;
   data[key] = (data[key] || 0) + amount;
-  save(db.strikes, data);
+  save(dbFiles.strikes, data);
   return data[key];
 }
 function resetStrikes(guildId, userId) {
-  const data = load(db.strikes);
+  const data = load(dbFiles.strikes);
   delete data[`${guildId}:${userId}`];
-  save(db.strikes, data);
+  save(dbFiles.strikes, data);
 }
 
 const spamTracker = new Map();
@@ -209,7 +201,7 @@ async function sendLog(guild, title, description, fields = [], color = 0x00ff88,
     .setDescription(description)
     .setColor(color)
     .setTimestamp()
-    .setFooter({ text: 'NRT OMEGA | DOWN 4 NRT' });
+    .setFooter({ text: 'NRT OMEGA' });
   if (fields.length) embed.addFields(fields);
   await channel.send({ embeds: [embed] }).catch(() => {});
 }
@@ -235,9 +227,9 @@ async function smartPunish(guild, userId, severity, reason, instant = false) {
     if (action === 3 && member.bannable) {
       await member.ban({ reason: `NRT: ${reason}` });
       result = 'banned';
-      const stats = load(db.stats);
+      const stats = load(dbFiles.stats);
       stats.totalBans = (stats.totalBans || 0) + 1;
-      save(db.stats, stats);
+      save(dbFiles.stats, stats);
       await sendLog(guild, 'USER_BANNED', `User banned: ${reason}`, [
         { name: 'User', value: `<@${userId}>`, inline: true },
         { name: 'Strikes', value: `${strikes}`, inline: true }
@@ -245,9 +237,9 @@ async function smartPunish(guild, userId, severity, reason, instant = false) {
     } else if (action === 2 && member.kickable) {
       await member.kick(`NRT: ${reason}`);
       result = 'kicked';
-      const stats = load(db.stats);
+      const stats = load(dbFiles.stats);
       stats.totalKicks = (stats.totalKicks || 0) + 1;
-      save(db.stats, stats);
+      save(dbFiles.stats, stats);
       await sendLog(guild, 'USER_KICKED', `User kicked: ${reason}`, [
         { name: 'User', value: `<@${userId}>`, inline: true },
         { name: 'Strikes', value: `${strikes}`, inline: true }
@@ -255,9 +247,9 @@ async function smartPunish(guild, userId, severity, reason, instant = false) {
     } else if (action === 1 && member.moderatable) {
       await member.timeout(300000, `NRT: ${reason}`);
       result = 'timeout';
-      const stats = load(db.stats);
+      const stats = load(dbFiles.stats);
       stats.totalTimeouts = (stats.totalTimeouts || 0) + 1;
-      save(db.stats, stats);
+      save(dbFiles.stats, stats);
       await sendLog(guild, 'USER_TIMEOUT', `User timed out: ${reason}`, [
         { name: 'User', value: `<@${userId}>`, inline: true },
         { name: 'Duration', value: '5 minutes', inline: true }
@@ -280,7 +272,7 @@ client.once(Events.ClientReady, async () => {
   console.log(`[NRT] Logged in as ${client.user.tag}`);
   console.log(`[NRT] Servers: ${client.guilds.cache.size}`);
 
-  // Register slash commands
+  // Build command list (all slash commands)
   const commands = [
     // General
     new SlashCommandBuilder().setName('help').setDescription('Show all commands'),
@@ -318,8 +310,7 @@ client.once(Events.ClientReady, async () => {
     // Proof
     new SlashCommandBuilder()
       .setName('proof')
-      .setDescription('Submit purchase proof')
-      .addAttachmentOption(opt => opt.setName('proof').setDescription('Proof image/file').setRequired(false)),
+      .setDescription('Submit purchase proof'),
     new SlashCommandBuilder().setName('setproofchannel').setDescription('Set channel for proof logs').addChannelOption(opt => opt.setName('channel').setDescription('Channel').setRequired(true)),
 
     // Staff role
@@ -336,7 +327,8 @@ client.once(Events.ClientReady, async () => {
     new SlashCommandBuilder().setName('antispam').setDescription('Toggle anti-spam').addStringOption(opt => opt.setName('state').setDescription('on/off').setRequired(true)),
     new SlashCommandBuilder().setName('antibot').setDescription('Toggle anti-bot').addStringOption(opt => opt.setName('state').setDescription('on/off').setRequired(true)),
     new SlashCommandBuilder().setName('antitoken').setDescription('Toggle token detection').addStringOption(opt => opt.setName('state').setDescription('on/off').setRequired(true)),
-    new SlashCommandBuilder().setName('whitelist')
+    new SlashCommandBuilder()
+      .setName('whitelist')
       .setDescription('Manage whitelist')
       .addSubcommand(sub => sub.setName('add').setDescription('Add user').addUserOption(opt => opt.setName('user').setDescription('User').setRequired(true)))
       .addSubcommand(sub => sub.setName('remove').setDescription('Remove user').addUserOption(opt => opt.setName('user').setDescription('User').setRequired(true)))
@@ -348,12 +340,36 @@ client.once(Events.ClientReady, async () => {
     new SlashCommandBuilder().setName('backup').setDescription('Create server backup')
   ];
 
+  const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
+
+  // ---- CLEAR GLOBAL COMMANDS FIRST ----
   try {
-    const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
-    await rest.put(Routes.applicationCommands(client.user.id), { body: commands.map(c => c.toJSON()) });
-    console.log('[NRT] Slash commands registered.');
+    console.log('[NRT] Clearing old global commands...');
+    await rest.put(Routes.applicationCommands(client.user.id), { body: [] });
+    console.log('[NRT] Global commands cleared.');
   } catch (e) {
-    console.error('[NRT] Command registration error:', e);
+    console.error('[NRT] Failed to clear global commands:', e);
+  }
+
+  // ---- REGISTER FOR EACH GUILD (or use GUILD_ID env) ----
+  const guildId = process.env.GUILD_ID;
+  if (guildId) {
+    try {
+      console.log(`[NRT] Registering commands for guild ${guildId}...`);
+      await rest.put(Routes.applicationGuildCommands(client.user.id, guildId), { body: commands.map(c => c.toJSON()) });
+      console.log('[NRT] Guild commands registered.');
+    } catch (e) {
+      console.error('[NRT] Guild registration error:', e);
+    }
+  } else {
+    // Fallback: register globally (may take up to an hour)
+    try {
+      console.log('[NRT] Registering commands globally (no GUILD_ID set)...');
+      await rest.put(Routes.applicationCommands(client.user.id), { body: commands.map(c => c.toJSON()) });
+      console.log('[NRT] Global commands registered (may take time to propagate).');
+    } catch (e) {
+      console.error('[NRT] Global registration error:', e);
+    }
   }
 
   client.user.setActivity('NRT OMEGA', { type: ActivityType.Watching });
@@ -433,14 +449,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
           { name: 'Staff', value: '`/setstaffrole`' },
           { name: 'Security (Owner)', value: '`/panic`, `/safemode`, `/lockdown`, `/unlockdown`, `/setlog`, `/antinuke`, `/antiraid`, `/antispam`, `/antibot`, `/antitoken`, `/whitelist`, `/trust`, `/resetstrikes`, `/stats`, `/logs`, `/backup`, `/status`' }
         )
-        .setFooter({ text: 'NRT OMEGA | DOWN 4 NRT' });
+        .setFooter({ text: 'NRT OMEGA' });
       await interaction.reply({ embeds: [embed] });
       return;
     }
 
     // ---- /status ----
     if (commandName === 'status') {
-      const stats = load(db.stats);
+      const stats = load(dbFiles.stats);
       const embed = new EmbedBuilder()
         .setTitle('System Status')
         .setColor(0x0099ff)
@@ -508,7 +524,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return;
     }
 
-    // ---- /antinuke, /antiraid, /antispam, /antibot, /antitoken ----
+    // ---- Toggles ----
     const toggleMap = {
       antinuke: 'antinuke',
       antiraid: 'antiraid',
@@ -527,15 +543,15 @@ client.on(Events.InteractionCreate, async (interaction) => {
     // ---- /whitelist ----
     if (commandName === 'whitelist') {
       const sub = options.getSubcommand();
-      const wl = load(db.whitelist);
+      const wl = load(dbFiles.whitelist);
       if (sub === 'add') {
         const user = options.getUser('user');
-        if (!wl.users.includes(user.id)) { wl.users.push(user.id); save(db.whitelist, wl); }
+        if (!wl.users.includes(user.id)) { wl.users.push(user.id); save(dbFiles.whitelist, wl); }
         await interaction.reply({ content: `Added ${user.tag} to whitelist.`, ephemeral: true });
       } else if (sub === 'remove') {
         const user = options.getUser('user');
         wl.users = wl.users.filter(id => id !== user.id);
-        save(db.whitelist, wl);
+        save(dbFiles.whitelist, wl);
         await interaction.reply({ content: `Removed ${user.tag}.`, ephemeral: true });
       } else if (sub === 'list') {
         const list = wl.users.map(id => `<@${id}>`).join('\n') || 'None';
@@ -561,9 +577,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return;
     }
 
-    // ---- /stats (punishment stats) ----
+    // ---- /stats ----
     if (commandName === 'stats') {
-      const stats = load(db.stats);
+      const stats = load(dbFiles.stats);
       const embed = new EmbedBuilder()
         .setTitle('Punishment Statistics')
         .setColor(0x0099ff)
@@ -581,7 +597,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     // ---- /logs ----
     if (commandName === 'logs') {
-      const logs = load(db.logs);
+      const logs = load(dbFiles.logs);
       const guildLogs = logs[guild.id] || [];
       const recent = guildLogs.slice(-10).reverse().map(l => `[${new Date(l.timestamp).toLocaleTimeString()}] ${l.title}`).join('\n');
       await interaction.reply({ content: `\`\`\`\nRECENT LOGS\n${recent || 'No logs'}\n\`\`\``, ephemeral: true });
@@ -596,11 +612,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
         channels: guild.channels.cache.map(c => ({ name: c.name, type: c.type })),
         roles: guild.roles.cache.map(r => ({ name: r.name, permissions: r.permissions.bitfield }))
       };
-      const backups = load(db.backup);
+      const backups = load(dbFiles.backup);
       if (!backups[guild.id]) backups[guild.id] = [];
       backups[guild.id].push(backup);
       if (backups[guild.id].length > 10) backups[guild.id].shift();
-      save(db.backup, backups);
+      save(dbFiles.backup, backups);
       await interaction.reply({ content: 'Backup created.', ephemeral: true });
       return;
     }
@@ -620,7 +636,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           .setFooter({ text: 'NRT OMEGA' });
         if (cfg.ticketImageUrl) embed.setImage(cfg.ticketImageUrl);
         const row = new ActionRowBuilder();
-        const types = cfg.ticketTypes || ['Support','Report','Other'];
+        const types = cfg.ticketTypes || ['Support', 'Report', 'Other'];
         types.forEach(label => {
           row.addComponents(
             new ButtonBuilder()
@@ -649,7 +665,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
       if (sub === 'addtype') {
         const label = options.getString('label');
-        if (!cfg.ticketTypes) cfg.ticketTypes = ['Support','Report','Other'];
+        if (!cfg.ticketTypes) cfg.ticketTypes = ['Support', 'Report', 'Other'];
         if (cfg.ticketTypes.includes(label)) {
           await interaction.reply({ content: 'Type already exists.', ephemeral: true });
         } else {
@@ -661,7 +677,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
       if (sub === 'removetype') {
         const label = options.getString('label');
-        if (!cfg.ticketTypes) cfg.ticketTypes = ['Support','Report','Other'];
+        if (!cfg.ticketTypes) cfg.ticketTypes = ['Support', 'Report', 'Other'];
         cfg.ticketTypes = cfg.ticketTypes.filter(t => t !== label);
         saveConfig(guild.id, cfg);
         await interaction.reply({ content: `Removed type "${label}".`, ephemeral: true });
@@ -871,7 +887,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
   }
 
-  // ---- Button interactions ----
+  // ---- Buttons ----
   if (interaction.isButton()) {
     if (interaction.customId === 'verifyButton') {
       const cfg = getConfig(interaction.guild.id);
@@ -925,9 +941,9 @@ client.on(Events.GuildMemberAdd, async (member) => {
   joinTracker.set(guildId, list);
   if (list.length >= cfg.raidThreshold) {
     joinTracker.set(guildId, []);
-    const stats = load(db.stats);
+    const stats = load(dbFiles.stats);
     stats.totalRaidsStopped = (stats.totalRaidsStopped || 0) + 1;
-    save(db.stats, stats);
+    save(dbFiles.stats, stats);
     if (cfg.autoLockdown) {
       member.guild.channels.cache.filter(c => c.type === ChannelType.GuildText)
         .forEach(c => c.permissionOverwrites.edit(member.guild.roles.everyone, { SendMessages: false }).catch(() => {}));
@@ -971,20 +987,29 @@ client.on(Events.MessageCreate, async (message) => {
                  content.match(/[a-zA-Z\d]{24}\.[a-zA-Z\d]{6}\.[a-zA-Z\d]{27}/g) ||
                  content.match(/mfa\.[a-zA-Z\d_-]{84}/g);
   if (tokens && tokens.length > 0) {
-    const stats = load(db.stats);
+    const stats = load(dbFiles.stats);
     stats.totalTokensDetected = (stats.totalTokensDetected || 0) + 1;
-    save(db.stats, stats);
+    save(dbFiles.stats, stats);
     await smartPunish(message.guild, message.author.id, 5, 'Token leak detected', true);
     try { await message.delete(); } catch {}
   }
 });
 
 // ---------- LOGIN ----------
-if (!process.env.BOT_TOKEN || !process.env.OWNER_ID) {
-  console.error('[NRT] Missing BOT_TOKEN or OWNER_ID env.');
+const token = process.env.BOT_TOKEN;
+const ownerId = process.env.OWNER_ID;
+const guildId = process.env.GUILD_ID;
+
+if (!token || !ownerId) {
+  console.error('[NRT] Missing BOT_TOKEN or OWNER_ID environment variables.');
   process.exit(1);
 }
-client.login(process.env.BOT_TOKEN).catch(err => {
+
+console.log(`[NRT] BOT_TOKEN: ${token ? 'SET' : 'MISSING'}`);
+console.log(`[NRT] OWNER_ID: ${ownerId}`);
+console.log(`[NRT] GUILD_ID: ${guildId || 'not set (will register globally)'}`);
+
+client.login(token).catch(err => {
   console.error('[NRT] Login error:', err);
   process.exit(1);
 });
