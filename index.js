@@ -210,7 +210,7 @@ function saveConfig(guildId, cfg) {
 }
 
 // ============================================================
-// TRUST & STRIKE SYSTEM (unchanged)
+// TRUST & STRIKE SYSTEM
 // ============================================================
 function getTrust(guildId, userId) {
   const trustData = load(db.trust);
@@ -275,7 +275,7 @@ function resetStrikes(guildId, userId) {
 }
 
 // ============================================================
-// ACTION TRACKER (unchanged)
+// ACTION TRACKER
 // ============================================================
 const actionTracker = new Map();
 
@@ -289,7 +289,7 @@ function trackAction(userId, actionType, guildId, window = 30000) {
 }
 
 // ============================================================
-// SPAM TRACKER (unchanged)
+// SPAM TRACKER
 // ============================================================
 const spamTracker = new Map();
 
@@ -311,7 +311,7 @@ function isSpamming(userId, guildId) {
 }
 
 // ============================================================
-// HELPER FUNCTIONS (unchanged)
+// HELPER FUNCTIONS
 // ============================================================
 const isOwner = (id) => id === process.env.OWNER_ID;
 const isWhitelisted = (guildId, userId) => {
@@ -332,7 +332,7 @@ const hasHighTrust = (guildId, userId) => {
 };
 
 // ============================================================
-// TOKEN DETECTION SYSTEM (unchanged)
+// TOKEN DETECTION SYSTEM
 // ============================================================
 function detectTokens(content) {
   const tokens = [];
@@ -354,7 +354,7 @@ function detectTokens(content) {
 }
 
 // ============================================================
-// PROTECTION MESSAGE (updated with NRT)
+// PROTECTION MESSAGE
 // ============================================================
 async function sendProtectionMessage(channel, user, action) {
   const embed = new EmbedBuilder()
@@ -368,7 +368,7 @@ async function sendProtectionMessage(channel, user, action) {
 }
 
 // ============================================================
-// LOGGING SYSTEM (updated with NRT)
+// LOGGING SYSTEM
 // ============================================================
 async function sendLog(guild, title, description, fields = [], color = 0x00ff88, critical = false) {
   try {
@@ -413,7 +413,7 @@ async function sendDetailedLog(guild, data) {
 }
 
 // ============================================================
-// AUDIT LOG HELPER (unchanged)
+// AUDIT LOG HELPER
 // ============================================================
 async function getAuditExecutor(guild, actionType, targetId = null, retries = 3) {
   for (let i = 0; i < retries; i++) {
@@ -432,7 +432,7 @@ async function getAuditExecutor(guild, actionType, targetId = null, retries = 3)
 }
 
 // ============================================================
-// SMART PUNISHMENT SYSTEM (unchanged)
+// SMART PUNISHMENT SYSTEM
 // ============================================================
 async function smartPunish(guild, userId, severity, reason, instant = false) {
   if (isBypassed(guild.id, userId)) {
@@ -526,7 +526,7 @@ async function smartPunish(guild, userId, severity, reason, instant = false) {
 }
 
 // ============================================================
-// !HELP COMMAND (updated with NRT)
+// !HELP COMMAND (prefix)
 // ============================================================
 async function sendModernHelp(message) {
   const embed = new EmbedBuilder()
@@ -563,7 +563,7 @@ async function sendModernHelp(message) {
       },
       { 
         name: 'SLASH COMMANDS', 
-        value: '```\n/ticket   ─ Send ticket panel with choices\n/proof    ─ Submit purchase proof\n/setproofchannel ─ Set channel for proof logs\n/setcategory     ─ Set category for tickets\n```', 
+        value: '```\n/help ─ Show all slash commands\n/ticket   ─ Send ticket panel\n/proof    ─ Submit purchase proof\n/setproofchannel ─ Set proof channel\n/setcategory     ─ Set ticket category\n/setstaffrole    ─ Set staff role\n/status ─ Security status\n/panic ─ Toggle panic mode\n/safemode ─ Toggle safe mode\n/lockdown ─ Lock server\n/unlockdown ─ Unlock server\n/backup ─ Create backup\n/antinuke on/off ─ Toggle anti-nuke\n/antiraid on/off ─ Toggle anti-raid\n/antispam on/off ─ Toggle anti-spam\n/antibot on/off ─ Toggle anti-bot\n/antitoken on/off ─ Toggle token detection\n/whitelist add/remove/list ─ Manage whitelist\n/trust @user ─ Check trust score\n/resetstrikes @user ─ Reset strikes\n/stats ─ Show punishment stats\n/logs ─ Show recent logs\n/setlog #channel ─ Set log channel\n```', 
         inline: false 
       },
       { 
@@ -577,7 +577,7 @@ async function sendModernHelp(message) {
 }
 
 // ============================================================
-// BACKUP SYSTEM (unchanged)
+// BACKUP SYSTEM
 // ============================================================
 async function createBackup(guild) {
   try {
@@ -642,13 +642,45 @@ client.once(Events.ClientReady, async () => {
 
   client.user.setActivity('PROTECTED BY NRT (DOWN 4 NRT)', { type: ActivityType.Watching });
 
-  // Register slash commands globally
+  // Register all slash commands globally
   const commands = [
+    // General
+    new SlashCommandBuilder().setName('help').setDescription('Show all slash commands'),
+    new SlashCommandBuilder().setName('status').setDescription('Show security status and stats'),
+    new SlashCommandBuilder().setName('panic').setDescription('Toggle PANIC MODE (owner only)'),
+    new SlashCommandBuilder().setName('safemode').setDescription('Toggle SAFE MODE (owner only)'),
+    new SlashCommandBuilder().setName('lockdown').setDescription('Lock all text channels (owner only)'),
+    new SlashCommandBuilder().setName('unlockdown').setDescription('Unlock all text channels (owner only)'),
+    new SlashCommandBuilder().setName('backup').setDescription('Create server backup (owner only)'),
+    new SlashCommandBuilder().setName('stats').setDescription('Show punishment statistics (owner only)'),
+    new SlashCommandBuilder().setName('logs').setDescription('Show recent logs (owner only)'),
+    new SlashCommandBuilder().setName('setlog').setDescription('Set the log channel (owner only)').addChannelOption(opt => opt.setName('channel').setDescription('Channel').setRequired(true)),
+
+    // Protection toggles
+    new SlashCommandBuilder().setName('antinuke').setDescription('Toggle anti-nuke (owner only)').addStringOption(opt => opt.setName('state').setDescription('on or off').setRequired(true).addChoices({ name: 'on', value: 'on' }, { name: 'off', value: 'off' })),
+    new SlashCommandBuilder().setName('antiraid').setDescription('Toggle anti-raid (owner only)').addStringOption(opt => opt.setName('state').setDescription('on or off').setRequired(true).addChoices({ name: 'on', value: 'on' }, { name: 'off', value: 'off' })),
+    new SlashCommandBuilder().setName('antispam').setDescription('Toggle anti-spam (owner only)').addStringOption(opt => opt.setName('state').setDescription('on or off').setRequired(true).addChoices({ name: 'on', value: 'on' }, { name: 'off', value: 'off' })),
+    new SlashCommandBuilder().setName('antibot').setDescription('Toggle anti-bot (owner only)').addStringOption(opt => opt.setName('state').setDescription('on or off').setRequired(true).addChoices({ name: 'on', value: 'on' }, { name: 'off', value: 'off' })),
+    new SlashCommandBuilder().setName('antitoken').setDescription('Toggle token detection (owner only)').addStringOption(opt => opt.setName('state').setDescription('on or off').setRequired(true).addChoices({ name: 'on', value: 'on' }, { name: 'off', value: 'off' })),
+
+    // Whitelist
+    new SlashCommandBuilder()
+      .setName('whitelist')
+      .setDescription('Manage whitelist (owner only)')
+      .addSubcommand(sub => sub.setName('add').setDescription('Add a user to whitelist').addUserOption(opt => opt.setName('user').setDescription('User').setRequired(true)))
+      .addSubcommand(sub => sub.setName('remove').setDescription('Remove a user from whitelist').addUserOption(opt => opt.setName('user').setDescription('User').setRequired(true)))
+      .addSubcommand(sub => sub.setName('list').setDescription('List all whitelisted users')),
+
+    // Trust & Strikes
+    new SlashCommandBuilder().setName('trust').setDescription('Check trust score of a user (owner only)').addUserOption(opt => opt.setName('user').setDescription('User').setRequired(true)),
+    new SlashCommandBuilder().setName('resetstrikes').setDescription('Reset strikes of a user (owner only)').addUserOption(opt => opt.setName('user').setDescription('User').setRequired(true)),
+
+    // Ticket & Proof
     new SlashCommandBuilder().setName('ticket').setDescription('Send the ticket panel with choice buttons'),
     new SlashCommandBuilder().setName('proof').setDescription('Submit purchase proof'),
-    new SlashCommandBuilder().setName('setproofchannel').setDescription('Set the channel for proof logs').addChannelOption(opt => opt.setName('channel').setDescription('Channel').setRequired(true)),
-    new SlashCommandBuilder().setName('setcategory').setDescription('Set the category for ticket channels').addChannelOption(opt => opt.setName('category').setDescription('Category').setRequired(true)),
-    new SlashCommandBuilder().setName('setstaffrole').setDescription('Set the staff role for tickets').addRoleOption(opt => opt.setName('role').setDescription('Role').setRequired(true))
+    new SlashCommandBuilder().setName('setproofchannel').setDescription('Set the channel for proof logs (admin)').addChannelOption(opt => opt.setName('channel').setDescription('Channel').setRequired(true)),
+    new SlashCommandBuilder().setName('setcategory').setDescription('Set the category for ticket channels (admin)').addChannelOption(opt => opt.setName('category').setDescription('Category').setRequired(true)),
+    new SlashCommandBuilder().setName('setstaffrole').setDescription('Set the staff role for tickets (admin)').addRoleOption(opt => opt.setName('role').setDescription('Role').setRequired(true))
   ];
 
   try {
@@ -678,7 +710,227 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const { commandName } = interaction;
     const cfg = getConfig(interaction.guild.id);
 
-    // /ticket - send the panel
+    // ----- /help -----
+    if (commandName === 'help') {
+      const embed = new EmbedBuilder()
+        .setTitle('NRT OMEGA SLASH COMMANDS')
+        .setColor(0x0099ff)
+        .setDescription('List of all slash commands:')
+        .addFields(
+          { name: 'General', value: '`/help`, `/status`, `/panic`, `/safemode`, `/lockdown`, `/unlockdown`, `/backup`, `/stats`, `/logs`, `/setlog`', inline: false },
+          { name: 'Protection Toggles', value: '`/antinuke`, `/antiraid`, `/antispam`, `/antibot`, `/antitoken`', inline: false },
+          { name: 'Whitelist', value: '`/whitelist add/remove/list`', inline: false },
+          { name: 'Trust & Strikes', value: '`/trust`, `/resetstrikes`', inline: false },
+          { name: 'Tickets & Proof', value: '`/ticket`, `/proof`, `/setproofchannel`, `/setcategory`, `/setstaffrole`', inline: false }
+        )
+        .setTimestamp()
+        .setFooter({ text: 'NRT OMEGA | DOWN 4 NRT' });
+      await interaction.reply({ embeds: [embed] });
+      return;
+    }
+
+    // ----- /status -----
+    if (commandName === 'status') {
+      const stats = load(db.stats);
+      const embed = new EmbedBuilder()
+        .setTitle('NRT OMEGA SECURITY STATUS')
+        .setColor(0x0099ff)
+        .setTimestamp()
+        .setFooter({ text: 'NRT OMEGA | DOWN 4 NRT' })
+        .addFields(
+          { name: 'PROTECTIONS', value: '==================', inline: false },
+          { name: 'ANTI_NUKE', value: cfg.antinuke ? 'ACTIVE' : 'INACTIVE', inline: true },
+          { name: 'ANTI_RAID', value: cfg.antiraid ? 'ACTIVE' : 'INACTIVE', inline: true },
+          { name: 'ANTI_SPAM', value: cfg.antispam ? 'ACTIVE' : 'INACTIVE', inline: true },
+          { name: 'ANTI_BOT', value: cfg.antibot ? 'ACTIVE' : 'INACTIVE', inline: true },
+          { name: 'ANTI_TOKEN', value: cfg.antitoken ? 'ACTIVE' : 'INACTIVE', inline: true },
+          { name: 'STATISTICS', value: '==================', inline: false },
+          { name: 'TOTAL_BANS', value: `${stats.totalBans || 0}`, inline: true },
+          { name: 'TOTAL_KICKS', value: `${stats.totalKicks || 0}`, inline: true },
+          { name: 'TOTAL_TIMEOUTS', value: `${stats.totalTimeouts || 0}`, inline: true },
+          { name: 'TOKENS_DETECTED', value: `${stats.totalTokensDetected || 0}`, inline: true },
+          { name: 'SYSTEM', value: '==================', inline: false },
+          { name: 'PANIC_MODE', value: cfg.panicMode ? 'ACTIVATED' : 'INACTIVE', inline: true },
+          { name: 'HOST', value: 'RAILWAY', inline: true },
+          { name: 'PROTECTED BY', value: 'NRT (DOWN 4 NRT)', inline: true }
+        );
+      await interaction.reply({ embeds: [embed] });
+      return;
+    }
+
+    // Owner-only checks for all management commands
+    if (!isOwner(interaction.user.id)) {
+      const ownerOnly = ['panic','safemode','lockdown','unlockdown','backup','stats','logs','setlog','antinuke','antiraid','antispam','antibot','antitoken','whitelist','trust','resetstrikes'];
+      if (ownerOnly.includes(commandName)) {
+        await interaction.reply({ content: 'This command is owner-only.', ephemeral: true });
+        return;
+      }
+    }
+
+    // ----- /panic -----
+    if (commandName === 'panic') {
+      cfg.panicMode = !cfg.panicMode;
+      saveConfig(interaction.guild.id, cfg);
+      await interaction.reply({ content: `Panic mode: ${cfg.panicMode ? 'ACTIVATED' : 'DEACTIVATED'}`, ephemeral: true });
+      return;
+    }
+
+    // ----- /safemode -----
+    if (commandName === 'safemode') {
+      cfg.safeMode = !cfg.safeMode;
+      saveConfig(interaction.guild.id, cfg);
+      await interaction.reply({ content: `Safe mode: ${cfg.safeMode ? 'ACTIVATED' : 'DEACTIVATED'}`, ephemeral: true });
+      return;
+    }
+
+    // ----- /lockdown -----
+    if (commandName === 'lockdown') {
+      interaction.guild.channels.cache
+        .filter(c => c.type === ChannelType.GuildText)
+        .forEach(c => c.permissionOverwrites.edit(interaction.guild.roles.everyone, { SendMessages: false }).catch(() => {}));
+      await interaction.reply({ content: 'Server lockdown initiated.', ephemeral: true });
+      return;
+    }
+
+    // ----- /unlockdown -----
+    if (commandName === 'unlockdown') {
+      interaction.guild.channels.cache
+        .filter(c => c.type === ChannelType.GuildText)
+        .forEach(c => c.permissionOverwrites.edit(interaction.guild.roles.everyone, { SendMessages: null }).catch(() => {}));
+      await interaction.reply({ content: 'Server lockdown lifted.', ephemeral: true });
+      return;
+    }
+
+    // ----- /backup -----
+    if (commandName === 'backup') {
+      await createBackup(interaction.guild);
+      await interaction.reply({ content: 'Backup created successfully.', ephemeral: true });
+      return;
+    }
+
+    // ----- /stats -----
+    if (commandName === 'stats') {
+      const stats = load(db.stats);
+      const embed = new EmbedBuilder()
+        .setTitle('SECURITY STATISTICS')
+        .setColor(0x0099ff)
+        .setTimestamp()
+        .setFooter({ text: 'NRT OMEGA | DOWN 4 NRT' })
+        .addFields(
+          { name: 'PUNISHMENTS', value: `\`\`\`Total Bans: ${stats.totalBans || 0}\nTotal Kicks: ${stats.totalKicks || 0}\nTotal Timeouts: ${stats.totalTimeouts || 0}\nTotal Warnings: ${stats.totalWarnings || 0}\`\`\``, inline: true },
+          { name: 'TOKENS', value: `\`\`\`Total Detected: ${stats.totalTokensDetected || 0}\`\`\``, inline: true },
+          { name: 'RAIDS', value: `\`\`\`Raids Stopped: ${stats.totalRaidsStopped || 0}\`\`\``, inline: true }
+        );
+      await interaction.reply({ embeds: [embed] });
+      return;
+    }
+
+    // ----- /logs -----
+    if (commandName === 'logs') {
+      const logs = load(db.logs);
+      const guildLogs = logs[interaction.guild.id] || [];
+      const recent = guildLogs.slice(-10).reverse();
+      let logText = '';
+      for (const log of recent) {
+        logText += `[${new Date(log.timestamp).toLocaleTimeString()}] ${log.critical ? '⚠️' : '📋'} ${log.title}\n`;
+      }
+      await interaction.reply({ content: `\`\`\`\nRECENT LOGS\n═══════════════════════════════════\n${logText || 'NO LOGS AVAILABLE'}\n═══════════════════════════════════\nPROTECTED BY NRT (DOWN 4 NRT)\n\`\`\``, ephemeral: true });
+      return;
+    }
+
+    // ----- /setlog -----
+    if (commandName === 'setlog') {
+      const channel = interaction.options.getChannel('channel');
+      cfg.logChannel = channel.id;
+      saveConfig(interaction.guild.id, cfg);
+      await interaction.reply({ content: `Log channel set to ${channel}.`, ephemeral: true });
+      return;
+    }
+
+    // ----- /antinuke -----
+    if (commandName === 'antinuke') {
+      const state = interaction.options.getString('state');
+      cfg.antinuke = state === 'on';
+      saveConfig(interaction.guild.id, cfg);
+      await interaction.reply({ content: `Anti-nuke ${cfg.antinuke ? 'activated' : 'deactivated'}.`, ephemeral: true });
+      return;
+    }
+    // ----- /antiraid -----
+    if (commandName === 'antiraid') {
+      const state = interaction.options.getString('state');
+      cfg.antiraid = state === 'on';
+      saveConfig(interaction.guild.id, cfg);
+      await interaction.reply({ content: `Anti-raid ${cfg.antiraid ? 'activated' : 'deactivated'}.`, ephemeral: true });
+      return;
+    }
+    // ----- /antispam -----
+    if (commandName === 'antispam') {
+      const state = interaction.options.getString('state');
+      cfg.antispam = state === 'on';
+      saveConfig(interaction.guild.id, cfg);
+      await interaction.reply({ content: `Anti-spam ${cfg.antispam ? 'activated' : 'deactivated'}.`, ephemeral: true });
+      return;
+    }
+    // ----- /antibot -----
+    if (commandName === 'antibot') {
+      const state = interaction.options.getString('state');
+      cfg.antibot = state === 'on';
+      saveConfig(interaction.guild.id, cfg);
+      await interaction.reply({ content: `Anti-bot ${cfg.antibot ? 'activated' : 'deactivated'}.`, ephemeral: true });
+      return;
+    }
+    // ----- /antitoken -----
+    if (commandName === 'antitoken') {
+      const state = interaction.options.getString('state');
+      cfg.antitoken = state === 'on';
+      saveConfig(interaction.guild.id, cfg);
+      await interaction.reply({ content: `Token detection ${cfg.antitoken ? 'activated' : 'deactivated'}.`, ephemeral: true });
+      return;
+    }
+
+    // ----- /whitelist -----
+    if (commandName === 'whitelist') {
+      const sub = interaction.options.getSubcommand();
+      const whitelist = load(db.whitelist);
+      if (sub === 'add') {
+        const user = interaction.options.getUser('user');
+        if (!whitelist.users.includes(user.id)) {
+          whitelist.users.push(user.id);
+          save(db.whitelist, whitelist);
+          await interaction.reply({ content: `User ${user.tag} added to whitelist.`, ephemeral: true });
+        } else {
+          await interaction.reply({ content: `User ${user.tag} is already whitelisted.`, ephemeral: true });
+        }
+      } else if (sub === 'remove') {
+        const user = interaction.options.getUser('user');
+        whitelist.users = whitelist.users.filter(id => id !== user.id);
+        save(db.whitelist, whitelist);
+        await interaction.reply({ content: `User ${user.tag} removed from whitelist.`, ephemeral: true });
+      } else if (sub === 'list') {
+        const users = whitelist.users.map(id => `<@${id}>`).join('\n') || 'NONE';
+        await interaction.reply({ content: `\`\`\`WHITELISTED USERS:\n${users}\n\`\`\``, ephemeral: true });
+      }
+      return;
+    }
+
+    // ----- /trust -----
+    if (commandName === 'trust') {
+      const user = interaction.options.getUser('user');
+      const score = getTrust(interaction.guild.id, user.id);
+      const strikes = getStrikes(interaction.guild.id, user.id);
+      await interaction.reply({ content: `\`\`\`USER: ${user.tag}\nTRUST_SCORE: ${score}/100\nSTRIKES: ${strikes}\n\`\`\``, ephemeral: true });
+      return;
+    }
+
+    // ----- /resetstrikes -----
+    if (commandName === 'resetstrikes') {
+      const user = interaction.options.getUser('user');
+      resetStrikes(interaction.guild.id, user.id);
+      await interaction.reply({ content: `Strikes for ${user.tag} have been reset.`, ephemeral: true });
+      return;
+    }
+
+    // ----- /ticket -----
     if (commandName === 'ticket') {
       const embed = new EmbedBuilder()
         .setTitle('OPEN A TICKET')
@@ -703,7 +955,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return;
     }
 
-    // /proof - open modal
+    // ----- /proof -----
     if (commandName === 'proof') {
       const modal = new ModalBuilder()
         .setCustomId('proofModal')
@@ -741,7 +993,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return;
     }
 
-    // /setproofchannel
+    // ----- /setproofchannel -----
     if (commandName === 'setproofchannel') {
       if (!interaction.memberPermissions.has(PermissionsBitField.Flags.Administrator)) {
         await interaction.reply({ content: 'You need Administrator permission.', ephemeral: true });
@@ -754,7 +1006,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return;
     }
 
-    // /setcategory
+    // ----- /setcategory -----
     if (commandName === 'setcategory') {
       if (!interaction.memberPermissions.has(PermissionsBitField.Flags.Administrator)) {
         await interaction.reply({ content: 'You need Administrator permission.', ephemeral: true });
@@ -771,7 +1023,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return;
     }
 
-    // /setstaffrole
+    // ----- /setstaffrole -----
     if (commandName === 'setstaffrole') {
       if (!interaction.memberPermissions.has(PermissionsBitField.Flags.Administrator)) {
         await interaction.reply({ content: 'You need Administrator permission.', ephemeral: true });
@@ -810,9 +1062,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const cfg = getConfig(interaction.guild.id);
       const proofChannel = interaction.guild.channels.cache.get(cfg.proofChannelId);
       if (proofChannel) {
-        // If proof attachment is provided, we can't get it from modal directly, but we can ask user to upload after?
-        // We'll just send the embed and ask for attachment in a follow-up message? Better: we can allow attachment in the modal? Modal doesn't support file upload.
-        // We'll send the embed and then ask user to upload proof image in the channel as a reply.
         await proofChannel.send({ embeds: [embed] });
         await proofChannel.send(`${interaction.user}, please attach your proof image/file here.`);
         await interaction.reply({ content: 'Your proof has been logged. Please attach the proof image in the proof channel.', ephemeral: true });
@@ -874,7 +1123,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 // ============================================================
-// MESSAGE CREATE EVENT - ALL COMMANDS (unchanged except strings)
+// MESSAGE CREATE EVENT - PREFIX COMMANDS
 // ============================================================
 client.on(Events.MessageCreate, async (message) => {
   if (message.author.bot) return;
@@ -916,7 +1165,7 @@ client.on(Events.MessageCreate, async (message) => {
     }
   }
 
-  // COMMAND HANDLER (prefix !)
+  // PREFIX COMMANDS (!)
   if (!message.content.startsWith('!')) return;
   const args = message.content.slice(1).trim().split(/ +/);
   const cmd = args[0].toLowerCase();
@@ -958,7 +1207,7 @@ client.on(Events.MessageCreate, async (message) => {
     return;
   }
 
-  // OWNER ONLY
+  // OWNER ONLY PREFIX COMMANDS
   if (!isOwner(message.author.id)) {
     await message.reply('```\nPERMISSION DENIED: OWNER ONLY\n```');
     return;
@@ -1144,7 +1393,7 @@ client.on(Events.MessageCreate, async (message) => {
 });
 
 // ============================================================
-// ANTI-BOT: UNAUTHORIZED BOT DETECTION (unchanged except strings)
+// ANTI-BOT: UNAUTHORIZED BOT DETECTION
 // ============================================================
 client.on(Events.GuildMemberAdd, async (member) => {
   if (!member.user.bot) return;
@@ -1185,7 +1434,7 @@ client.on(Events.GuildMemberAdd, async (member) => {
 });
 
 // ============================================================
-// ANTI-RAID: MASS JOIN (unchanged)
+// ANTI-RAID: MASS JOIN
 // ============================================================
 const joinTracker = new Map();
 
@@ -1256,7 +1505,7 @@ client.on(Events.GuildMemberAdd, async (member) => {
 });
 
 // ============================================================
-// ANTI-NUKE: CHANNEL DELETE (unchanged)
+// ANTI-NUKE: CHANNEL DELETE
 // ============================================================
 client.on(Events.ChannelDelete, async (channel) => {
   if (!channel.guild) return;
